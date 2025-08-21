@@ -244,9 +244,7 @@ main() {
     [[ $do_ksu -eq 1 ]] && set_kernelsu
     [[ $do_susfs -eq 1 ]] && set_susfs
 
-    if [[ $do_regen -eq 0 && $do_clean -eq 0 && $do_ksu -eq 0 && $do_susfs -eq 0 ]]; then
-        setup_and_compile
-    fi
+    setup_and_compile
 }
 # Run the main function
 main "$@"
