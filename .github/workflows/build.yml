@@ -6,18 +6,13 @@ on:
       KernelSU-Next-patch:
         description: 'Patch to use KernelSU-Next?'
         required: true
-        default: 'yes'
-        type: choice
-        options:
-          - yes
-          - no
+        default: true
+        type: boolean
       SUSFS-patch:
         description: 'Patch kernel with SUSFS?'
         required: true
-        type: choice
-        options:
-          - yes
-          - no
+        default: true
+        type: boolean
 
 jobs:
   build:
@@ -62,10 +57,11 @@ jobs:
       - name: Run build script
         run: |
           args=""
-          if [[ "${{ github.event.inputs.KernelSU-Next-patch }}" == "yes" ]]; then
+          if [[ "${{ github.event.inputs.KernelSU-Next-patch }}" == "true" ]]; then
             args="$args -g"
           fi
-          if [[ "${{ github.event.inputs.SUSFS-patch }}" == "yes" ]]; then
+          if [[ "${{ github.event.inputs.SUSFS-patch }}" == "true" ]]; then
             args="$args -s"
           fi
+          echo $args
           bash ./build.sh $args
