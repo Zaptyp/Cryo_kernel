@@ -1,6 +1,10 @@
 name: Build Cryo_Kernel
 
 on:
+  push:
+    branches: [ksu-next]
+  pull_request: 
+    branches: [ksu-next]
   workflow_dispatch:
     inputs:
       KernelSU-Next-patch:
