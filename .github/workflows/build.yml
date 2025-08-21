@@ -46,15 +46,19 @@ jobs:
           mkdir -p aosp-clang
           tar -xf clang.tar.gz -C aosp-clang
 
-      - name: Download GCC 64-bit
+      - name: Download AOSP GCC 64-bit
         run: |
           cd $HOME/android/toolchains
-          git clone --depth=1 https://github.com/llvm/llvm-project.git llvm-arm64
+          wget https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/6ca6746f5fafd7d1b162451dce2ae40741529e9e.tar.gz -O llvm-arm64.tar.gz
+          mkdir -p llvm-arm64
+          tar -xf llvm-arm64.tar.gz -C llvm-arm64
 
-      - name: Download GCC 32-bit
+      - name: Download AOSP GCC 32-bit
         run: |
           cd $HOME/android/toolchains
-          git clone --depth=1 https://github.com/llvm/llvm-project.git llvm-arm
+          wget https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/488c9d68f82779f6f060df2c385f079a795002f6.tar.gz -O llvm-arm.tar.gz
+          mkdir -p llvm-arm
+          tar -xf llvm-arm.tar.gz -C llvm-arm
 
       - name: Download AnyKernel3
         run: |
