@@ -1,0 +1,87 @@
+name: Build Cryo_Kernel
+
+on:
+  push:
+    branches: [ksu-next]
+  pull_request: 
+    branches: [ksu-next]
+  workflow_dispatch:
+    inputs:
+      KernelSU-Next-patch:
+        description: 'Patch to use KernelSU-Next?'
+        required: true
+        default: true
+        type: boolean
+      SUSFS-patch:
+        description: 'Patch kernel with SUSFS?'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+      - name: Setup git config
+        run: |
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --global user.name "${GITHUB_ACTOR}"
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git wget curl build-essential bc bison flex libssl-dev
+
+      - name: Prepare directories
+        run: |
+          mkdir -p $HOME/android/toolchains
+          mkdir -p $HOME/android
+
+      - name: Download AOSP Clang
+        run: |
+          cd $HOME/android/toolchains
+          wget http://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r547379.tar.gz -O clang.tar.gz
+          mkdir -p aosp-clang
+          tar -xf clang.tar.gz -C aosp-clang
+
+      - name: Download AOSP GCC 64-bit
+        run: |
+          cd $HOME/android/toolchains
+          wget https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/6ca6746f5fafd7d1b162451dce2ae40741529e9e.tar.gz -O llvm-arm64.tar.gz
+          mkdir -p llvm-arm64
+          tar -xf llvm-arm64.tar.gz -C llvm-arm64
+
+      - name: Download AOSP GCC 32-bit
+        run: |
+          cd $HOME/android/toolchains
+          wget https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/488c9d68f82779f6f060df2c385f079a795002f6.tar.gz -O llvm-arm.tar.gz
+          mkdir -p llvm-arm
+          tar -xf llvm-arm.tar.gz -C llvm-arm
+
+      - name: Download AnyKernel3
+        run: |
+          cd $HOME/android
+          git clone https://github.com/osm0sis/AnyKernel3.git Anykernel3
+
+      - name: Run build script
+        run: |
+          args=""
+          if [[ "${{ github.event.inputs.KernelSU-Next-patch }}" == "true" ]]; then
+            args="$args -g"
+          fi
+          if [[ "${{ github.event.inputs.SUSFS-patch }}" == "true" ]]; then
+            args="$args -s"
+          fi
+          echo $args
+          bash ./build.sh $args
+          ls -la
+          ls -la /home/runner/work/Cryo_kernel/Cryo_kernel/android/
+      - name: Upload artifacts
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cryo_Kernel
+          path: |
+            /home/runner/work/Cryo_kernel/Cryo_kernel/android/*.zip
