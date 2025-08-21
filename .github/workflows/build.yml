@@ -1,4 +1,4 @@
-name: Build Cryo_Kernel (WORKFLOW NOT WORKING ONLY FOR A EXAMPLE FOR SOMEONE TO FIX THIS)
+name: Build Cryo_Kernel
 
 on:
   workflow_dispatch:
