@@ -1,0 +1,71 @@
+name: Build Cryo_Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      KernelSU-Next-patch:
+        description: 'Patch to use KernelSU-Next?'
+        required: true
+        default: 'yes'
+        type: choice
+        options:
+          - yes
+          - no
+      SUSFS-patch:
+        description: 'Patch kernel with SUSFS?'
+        required: true
+        type: choice
+        options:
+          - yes
+          - no
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git wget curl build-essential bc bison flex libssl-dev
+
+      - name: Prepare directories
+        run: |
+          mkdir -p $HOME/android/toolchains
+          mkdir -p $HOME/android
+
+      - name: Download AOSP Clang
+        run: |
+          cd $HOME/android/toolchains
+          wget http://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r547379.tar.gz -O clang.tar.gz
+          mkdir -p aosp-clang
+          tar -xf clang.tar.gz -C aosp-clang
+
+      - name: Download GCC 64-bit
+        run: |
+          cd $HOME/android/toolchains
+          git clone --depth=1 https://github.com/llvm/llvm-project.git llvm-arm64
+
+      - name: Download GCC 32-bit
+        run: |
+          cd $HOME/android/toolchains
+          git clone --depth=1 https://github.com/llvm/llvm-project.git llvm-arm
+
+      - name: Download AnyKernel3
+        run: |
+          cd $HOME/android
+          git clone https://github.com/osm0sis/AnyKernel3.git Anykernel3
+
+      - name: Run build script
+        run: |
+          args=""
+          if [[ "${{ github.event.inputs.KernelSU-Next-patch }}" == "yes" ]]; then
+            args="$args -g"
+          fi
+          if [[ "${{ github.event.inputs.SUSFS-patch }}" == "yes" ]]; then
+            args="$args -s"
+          fi
+          bash ./build.sh $args
