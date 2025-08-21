@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Paths and configurations
-TC_DIR="$HOME/android/toolchains/aosp-clang"
-GCC_64_DIR="$HOME/android/toolchains/llvm-arm64"
-GCC_32_DIR="$HOME/android/toolchains/llvm-arm"
-AK3_DIR="$HOME/android/Anykernel3"
-DEFCONFIG="vendor/ginkgo-perf_defconfig"
+TC_DIR="$HOME/android/toolchains/aosp-clang" #clang location
+GCC_64_DIR="$HOME/android/toolchains/llvm-arm64" #GCC 64 location
+GCC_32_DIR="$HOME/android/toolchains/llvm-arm" #GCC 32 location
+AK3_DIR="$HOME/android/Anykernel3" #Anykernel3 location
+DEFCONFIG="vendor/ginkgo-perf_defconfig" #Build config location
 
 # Export build metadata
 export PATH="$TC_DIR/bin:$PATH"
-export KBUILD_BUILD_USER=lyahi
-export KBUILD_BUILD_HOST=idut
+export KBUILD_BUILD_USER=$(whoami)
+export KBUILD_BUILD_HOST=$(hostname)
 
 # Function to handle script cleanup on exit or interrupt
 cleanup() {
@@ -20,8 +20,8 @@ cleanup() {
     echo "Exiting..."
 }
 
-# Set trap to call the cleanup function on EXIT or SIGINT (Ctrl+C)
-trap cleanup EXIT SIGINT
+# Set trap to call the cleanup function on ERR or SIGINT (Ctrl+C)
+trap cleanup SIGINT ERR
 
 # Function to show help
 show_help() {
@@ -30,17 +30,20 @@ show_help() {
     echo "Options:"
     echo "  -r, --regen       Regenerate defconfig and save it to the configuration directory"
     echo "  -c, --clean       Clean the output directory"
-    echo "  -g, --get-ksu     Download and set up KernelSU, apply patch, and modify defconfig"
+    echo "  -g, --get-ksu     Download and set up KernelSU Next, apply patch"
+    echo "  -s, --get-susfs   Setup and apply patch for SUSFS (ALWAYS USE WITH -g BECAUSE WITHOUT KERNELSU SCRIPT WILL FAIL!)"
     echo "  -h, --help        Show this help message"
     echo ""
     echo "If no options are provided, the script will proceed to compile the kernel and package it."
-    echo "The script will also adjust the output ZIP name based on the presence of the KernelSU directory."
+    echo "The script will also adjust the output ZIP name based on the presence of the KernelSU-Next directory."
     echo ""
     echo "Example:"
     echo "  $0           # Compile kernel"
     echo "  $0 --regen   # Regenerate defconfig"
     echo "  $0 --clean   # Clean output directory"
-    echo "  $0 --get-ksu # Download and set up KernelSU"
+    echo "  $0 --get-ksu # Download and set up KernelSU Next"
+    echo "  $0 --get-ksu --get-susfs # Patch kernel with KernelSU-Next and include SUSFS v1.5.9"
+    exit 0
 }
 
 # Function to start the timer
@@ -75,35 +78,64 @@ get_zip_name() {
     echo "$ZIPNAME"
 }
 
-# Function to download and set up KernelSU, apply patch and modify defconfig
+# Function to download and set up KernelSU Next, apply patch and modify defconfig
 set_kernelsu() {
     echo "Downloading and setting up KernelSU..."
-    curl -kLSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s main
+    bash ./patch/ksu-next/setup.sh next-susfs-experimental
     if [[ $? -eq 0 ]]; then
-        echo "KernelSU downloaded and set up successfully."
+        echo "KernelSU-Next downloaded and set up successfully."
         
-        if [[ -d "KernelSU" ]]; then
+        if [[ -d "KernelSU-Next" ]]; then
             # Apply KernelSU hook patch
-            echo "Applying KernelSU-hook.patch..."
-            if [[ -f "ksu_hook.patch" ]]; then
-                git apply ksu_hook.patch
-                echo "Patch applied successfully."
+            echo "Applying Scope-Minimal-Hooks_KernelSU-Next.patch..."
+            if [[ -f "./patch/Scope-Minimal-Hooks_KernelSU-Next.patch" ]]; then
+                if git am ./patch/Scope-Minimal-Hooks_KernelSU-Next.patch; then
+                    echo "Patch applied successfully."
+                else
+                    git am --abort
+                    echo "KernelSU-Next (Scope-Minimal-Hooks_KernelSU-Next.patch) PATCH FAILED!"
+                    echo "Patching aborted and reverted!"
+                    echo 1
+                fi
             else
-                echo "Patch ksu_hook.patch not found!"
+                echo "Patch Scope-Minimal-Hooks_KernelSU-Next.patch not found!"
+                exit 1
             fi
             
-            # Modify the defconfig to enable KernelSU
-            echo "Enabling CONFIG_KSU in $DEFCONFIG..."
-            sed -i 's/CONFIG_KSU=n/CONFIG_KSU=y/g' "arch/arm64/configs/$DEFCONFIG"
-            echo "CONFIG_KSU enabled in $DEFCONFIG."
         else
-            echo "KernelSU directory not found after download!"
+            echo "KernelSU-Next directory not found after download!"
+            exit 1
         fi
     else
         echo "Failed to download KernelSU."
         exit 1
     fi
 }
+
+set_susfs() {
+    if [[ -d "KernelSU-Next" ]]; then
+        # Apply SUSFS patch
+        echo "Applying SUSFS_v1.5.9.patch..."
+        if [[ -f "./patch/SUSFS_v1.5.9.patch" ]]; then
+            if git am ./patch/SUSFS_v1.5.9.patch; then
+                echo "Patch applied successfully."
+            else
+                git am --abort
+                echo "SUSFS v1.5.9 (USFS_v1.5.9.patch) PATCH FAILED!"
+                echo "Patching aborted and reverted!"
+                echo 1
+            fi
+        else
+            echo "Patch SUSFS_v1.5.9.patch not found!"
+            exit 1
+        fi
+            
+    else
+        echo "KernelSU-Next directory not found! Cannot apply SUSFS patch without KernelSU-Next because this have no sense!"
+        exit 1
+    fi
+}
+
 
 # Function to regenerate defconfig
 regen_defconfig() {
@@ -120,6 +152,7 @@ clean_output() {
 
 # Function to set up output directory and build kernel using a make command stored in an array
 setup_and_compile() {
+    exit 0
     mkdir -p out
     make O=out ARCH=arm64 "$DEFCONFIG"
     
@@ -183,30 +216,38 @@ package_kernel() {
 
 # Main function to control script flow
 main() {
-    start_timer  # Start the timer
-    case "$1" in
-        -r|--regen)
-            regen_defconfig
-            ;;
-        -c|--clean)
-            clean_output
-            ;;
-        -g|--get-ksu)
-            set_kernelsu
-            ;;
-        -h|--help)
-            show_help
-            ;;
-        *)
-            if [[ -n "$1" ]]; then
-                echo "Unknown option: $1"
-                show_help
-                exit 1
-            fi
-            setup_and_compile
-            ;;
-    esac
-}
+    start_timer
 
+    do_regen=0
+    do_clean=0
+    do_ksu=0
+    do_susfs=0
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -r|--regen)    do_regen=1 ;;
+            -c|--clean)    do_clean=1 ;;
+            -g|--get-ksu)  do_ksu=1 ;;
+            -s|--get-susfs) do_susfs=1 ;;
+            -h|--help)     show_help; exit 0 ;;
+            *)             echo "Unknown option: $1"; show_help; exit 1 ;;
+        esac
+        shift
+    done
+
+    if [[ $do_susfs -eq 1 && $do_ksu -eq 0 ]]; then
+        echo "Option --get-susfs (-s) need be to run with --get-ksu(-g)!."
+        exit 1
+    fi
+
+    [[ $do_regen -eq 1 ]] && regen_defconfig
+    [[ $do_clean -eq 1 ]] && clean_output
+    [[ $do_ksu -eq 1 ]] && set_kernelsu
+    [[ $do_susfs -eq 1 ]] && set_susfs
+
+    if [[ $do_regen -eq 0 && $do_clean -eq 0 && $do_ksu -eq 0 && $do_susfs -eq 0 ]]; then
+        setup_and_compile
+    fi
+}
 # Run the main function
 main "$@"
