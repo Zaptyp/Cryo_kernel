@@ -76,3 +76,10 @@ jobs:
           fi
           echo $args
           bash ./build.sh $args
+      - name: Upload artifacts
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cryo_Kernel
+          path: |
+            *.zip
