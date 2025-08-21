@@ -76,10 +76,12 @@ jobs:
           fi
           echo $args
           bash ./build.sh $args
+          ls -la
+          ls -la /home/runner/work/Cryo_kernel/Cryo_kernel/android/
       - name: Upload artifacts
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
           name: Cryo_Kernel
           path: |
-            $HOME/android/*.zip
+            /home/runner/work/Cryo_kernel/Cryo_kernel/android/*.zip
