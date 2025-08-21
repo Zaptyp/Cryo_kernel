@@ -82,4 +82,4 @@ jobs:
         with:
           name: Cryo_Kernel
           path: |
-            *.zip
+            $HOME/android/*.zip
