@@ -121,7 +121,7 @@ set_susfs() {
                 echo "Patch applied successfully."
             else
                 git am --abort
-                echo "SUSFS v1.5.9 (USFS_v1.5.9.patch) PATCH FAILED!"
+                echo "SUSFS v1.5.9 (SUSFS_v1.5.9.patch) PATCH FAILED!"
                 echo "Patching aborted and reverted!"
                 echo 1
             fi
@@ -152,7 +152,6 @@ clean_output() {
 
 # Function to set up output directory and build kernel using a make command stored in an array
 setup_and_compile() {
-    exit 0
     mkdir -p out
     make O=out ARCH=arm64 "$DEFCONFIG"
     
